@@ -1,10 +1,13 @@
 """  """
-import tkinter as tk
-from PIL import Image, ImageTk
-import password
-import random
 import pickle
+import random
+import tkinter as tk
+from tkinter import messagebox
 from pprint import pprint
+
+from PIL import Image, ImageTk
+
+import password
 
 # websites_data = {'example.com': {'abc@gmail.com': 'incorrect123',
 #                                 'Guido': 'q1w2e3r4t5',
@@ -31,7 +34,7 @@ def get_data_from_file(filename : str='data.pickle') -> dict:
             data = pickle.load(datafile)
             return data
     except:
-        print('something went wrong')
+        # print('something went wrong')
         return {}
     
 def save_data_to_file(data_object: object, filename: str='data.pickle'):
@@ -93,10 +96,12 @@ class PasswordManager(tk.Tk):
             print('Saving current password:', self.current_password)
             website_users = self.data_base.setdefault(self.current_website, {})
             website_users[self.current_user] = self.current_password
-            pprint(self.data_base)
+            # pprint(self.data_base)
             save_data_to_file(self.data_base)     
         else:
-            print('Password:', self.current_password, 'is not correct. Try another')
+            # print('Password:', self.current_password, 'is not correct. Try another')
+            incorrect_password_message = f'Password "{self.current_password}" is not correct. Try another'
+            messagebox.showerror(title='Incorrect Password', message=incorrect_password_message)
             self.password_field.focus()
 
     def check_user_in_database(self):
@@ -108,7 +113,12 @@ class PasswordManager(tk.Tk):
         self.current_password = website_users.get(self.current_user, '')
         self.password_field.insert(0, self.current_password)
         if self.current_password:
-            print(f'{self.current_user} has already registered on {self.current_website} with {self.current_password=}')
+            # print(f'{self.current_user} has already registered on {self.current_website} with {self.current_password=}')
+            already_registered_message = (f'User: {self.current_user}\n' 
+                                          'has already registered on\n'
+                                           f'Website: {self.current_website}\n'
+                                           f'Password: {self.current_password}')
+            messagebox.showinfo(title='User already registered', message=already_registered_message)
 
     def add_dialog(self):
         """ add dialog """
@@ -155,8 +165,8 @@ def main():
     password_manager.mainloop()
 
 if __name__ == "__main__":
-    import sys
     import os
+    import sys
     os.system('cls')
     print('-----------------------------------------------------------')
     main()
