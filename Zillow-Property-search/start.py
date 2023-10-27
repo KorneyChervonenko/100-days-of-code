@@ -1,10 +1,11 @@
 """ https://www.udemy.com/course/100-days-of-code/ """
 # to compile a list of all the places for rent in San Francisco 
 # from $2,800 up to $3,000 per month and it has to have at least one bedroom
-
 import json
 import re
+import time
 import urllib.parse
+from urllib.parse import parse_qs, urlparse
 from collections import namedtuple
 from pprint import pprint
 
@@ -26,11 +27,13 @@ Realty = namedtuple('Realty', 'address price url')
 
 def main():
     """ main function """
-    realties = []
+    realties = set()
     page = 0
     while True:
+        time.sleep(1)
         page += 1
-        print(f'scraping page # {page}')
+        # if page > 1: break
+        
         params = {
                 'searchQueryState': {
                         # 'mapBounds':{'north': 37.97, 'east': -121.614, 'south': 37.59, 'west': -123.4},
@@ -54,15 +57,37 @@ def main():
         }
         request_params = urllib.parse.urlencode(params)
         response = requests.get(base_url, headers=header, params=request_params)
+        
         if response.status_code != 200:
             break
+
+        # # parsing current url for real page number
+        # params_data = parse_qs(urlparse(response.url).query)
+        # params_data = params_data.get('searchQueryState', ["""{'pagination': {'currentPage': None}}"""])
+        # params_data = eval(params_data[0])
+        # current_page = params_data.get('pagination').get('currentPage')
+        # if current_page is None:
+        #     break
+
         soup = bs4.BeautifulSoup(response.text, 'html.parser')
+
+        page_number_element_list = soup.find_all('li', class_='PaginationNumberItem-c11n-8-84-3__sc-bnmlxt-0 cA-Ddyj')
+        obtainable_pages = set()
+        for page_number_element in page_number_element_list:
+            page_number_data = page_number_element.find('a')
+            obtainable_pages.add(int(page_number_data.text))
+
+        if page not in obtainable_pages: # all pages were scraped
+            break
+
         items_list = soup.find('ul', class_='List-c11n-8-84-3__sc-1smrmqp-0 StyledSearchListWrapper-srp__sc-1ieen0c-0 doa-doM fgiidE photo-cards')
-        # # items_list = soup.find_all('li', class_='ListItem-c11n-8-84-3__sc-10e22w8-0 StyledListCardWrapper-srp__sc-wtsrtn-0 iCyebE gTOWtl')
-        # print(len(items_list))
+    #     # items_list = soup.find_all('li', class_='ListItem-c11n-8-84-3__sc-10e22w8-0 StyledListCardWrapper-srp__sc-wtsrtn-0 iCyebE gTOWtl')
+        print(f'Scraping page # {page}, {len(items_list)} records found')
+        items_list = soup.find('ul', class_='List-c11n-8-84-3__sc-1smrmqp-0 StyledSearchListWrapper-srp__sc-1ieen0c-0 doa-doM fgiidE photo-cards')
         for i, item in enumerate(items_list):
             script_element = item.find('script', {'type' : 'application/ld+json'})
-            price_element = item.find('span', {'data-test': 'property-card-price', 'class': 'PropertyCardWrapper__StyledPriceLine-srp__sc-16e8gqd-1 iMKTKr'})
+            price_element = item.find('span', {'data-test': 'property-card-price',
+                                               'class': 'PropertyCardWrapper__StyledPriceLine-srp__sc-16e8gqd-1 iMKTKr'})
             if not script_element or not price_element:
                 continue
             script_data = json.loads(script_element.contents[0])
@@ -72,10 +97,11 @@ def main():
             item_address = script_data.get('name')
             price_data = re.search(r'\$\d\,\d{3}', price_element.text)[0]
             item_price = int(re.sub(r'[^\d.]', '', price_data))
-            realties.append(Realty(item_address, item_price, item_url))
+            realties.add(Realty(item_address, item_price, item_url))
 
     # print(*realties, sep='\n--------------------\n')
-
+    print(f'{len(realties)} properties were found') 
+    realties = list(realties)
     workbook = xlsxwriter.Workbook(EXCELFILE)
     worksheet = workbook.add_worksheet()
     # write names of columns
@@ -93,5 +119,5 @@ if __name__ == "__main__":
     os.system('cls')
     print('-----------------------------------------------------------')
     main()
-    
     sys.exit()
+
